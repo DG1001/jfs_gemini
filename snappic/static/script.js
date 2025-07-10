@@ -13,12 +13,71 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // Handle form submission with loading indicator
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', () => {
-            if (loadingIndicator) {
-                loadingIndicator.style.display = 'block';
+    const uploadContainer = document.getElementById('upload-container');
+
+    if (uploadContainer) {
+        const fileTab = document.getElementById('file-tab');
+        const cameraTab = document.getElementById('camera-tab');
+        const fileUpload = document.getElementById('file-upload');
+        const cameraUpload = document.getElementById('camera-upload');
+        const video = document.getElementById('camera-stream');
+        const captureBtn = document.getElementById('capture-btn');
+        const canvas = document.getElementById('canvas');
+        const fileInput = document.querySelector('input[type="file"]');
+        let stream;
+
+        fileTab.addEventListener('click', () => {
+            fileTab.classList.add('active');
+            cameraTab.classList.remove('active');
+            fileUpload.classList.add('active');
+            cameraUpload.classList.remove('active');
+            stopCamera();
+        });
+
+        cameraTab.addEventListener('click', () => {
+            cameraTab.classList.add('active');
+            fileTab.classList.remove('active');
+            cameraUpload.classList.add('active');
+            fileUpload.classList.remove('active');
+            startCamera();
+        });
+
+        async function startCamera() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    video.srcObject = stream;
+                } catch (error) {
+                    console.error("Error accessing camera: ", error);
+                    alert('Kamerazugriff fehlgeschlagen. Bitte Berechtigungen prüfen.');
+                }
+            } else {
+                alert('Dein Browser unterstützt die Kamera-API nicht.');
             }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        captureBtn.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                const capturedFile = new File([blob], "capture.jpg", { type: "image/jpeg" });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(capturedFile);
+                fileInput.files = dataTransfer.files;
+
+                // Switch back to file tab to show the captured image is ready
+                fileTab.click();
+                alert('Foto aufgenommen! Du kannst jetzt einen Kommentar hinzufügen und hochladen.');
+            }, 'image/jpeg');
         });
     }
 
@@ -34,36 +93,54 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        const displayedImageIds = new Set();
+
         const updateGallery = (images) => {
-            galleryContainer.innerHTML = ''; // Clear existing content
+            const incomingImageIds = new Set(images.map(img => img.id));
 
-            images.forEach(image => {
-                const age = image.age;
-                const lifetime = image.lifetime;
-                const fadeoutDuration = image.fadeout_duration;
-
-                const item = document.createElement('div');
-                item.classList.add('gallery-item');
-                item.dataset.id = image.id;
-
-                const img = document.createElement('img');
-                img.src = `/uploads/${image.filename}`;
-                img.alt = image.comment;
-
-                const comment = document.createElement('div');
-                comment.classList.add('comment');
-                comment.textContent = image.comment;
-
-                item.appendChild(img);
-                item.appendChild(comment);
-
-                // Handle fade-out animation
-                if (age > lifetime) {
-                    const fadeOutProgress = (age - lifetime) / fadeoutDuration;
-                    item.style.opacity = 1 - fadeOutProgress;
+            // Remove images that are no longer in the active list
+            for (const displayedId of displayedImageIds) {
+                if (!incomingImageIds.has(displayedId)) {
+                    const oldItem = galleryContainer.querySelector(`[data-id="${displayedId}"]`);
+                    if (oldItem) {
+                        oldItem.style.animation = 'fadeOut 0.5s forwards';
+                        setTimeout(() => oldItem.remove(), 500);
+                    }
+                    displayedImageIds.delete(displayedId);
                 }
+            }
 
-                galleryContainer.appendChild(item);
+            // Add or update images
+            images.forEach(image => {
+                const { id, filename, comment, age, lifetime, fadeout_duration } = image;
+
+                if (!displayedImageIds.has(id)) {
+                    // Create new item
+                    const item = document.createElement('div');
+                    item.classList.add('gallery-item');
+                    item.dataset.id = id;
+                    item.style.animation = 'fadeIn 0.5s';
+
+                    const img = document.createElement('img');
+                    img.src = `/uploads/${filename}`;
+                    img.alt = comment;
+
+                    const commentDiv = document.createElement('div');
+                    commentDiv.classList.add('comment');
+                    commentDiv.textContent = comment;
+
+                    item.appendChild(img);
+                    item.appendChild(commentDiv);
+                    galleryContainer.appendChild(item);
+                    displayedImageIds.add(id);
+                } else {
+                    // Update existing item (for fade-out)
+                    const item = galleryContainer.querySelector(`[data-id="${id}"]`);
+                    if (item && age > lifetime) {
+                        const fadeOutProgress = Math.min(1, (age - lifetime) / fadeout_duration);
+                        item.style.opacity = 1 - fadeOutProgress;
+                    }
+                }
             });
         };
 

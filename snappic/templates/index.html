@@ -11,11 +11,27 @@
 <body>
     <div class="container">
         <h1>SnapPic</h1>
-        <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
-            <textarea name="comment" maxlength="100" placeholder="Dein Kommentar (max. 100 Zeichen)"></textarea>
-            <button type="submit">Hochladen</button>
-        </form>
+        <div id="upload-container">
+            <div class="upload-tabs">
+                <button id="file-tab" class="tab-button active">Datei</button>
+                <button id="camera-tab" class="tab-button">Kamera</button>
+            </div>
+
+            <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+                <div id="file-upload" class="upload-content active">
+                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                </div>
+
+                <div id="camera-upload" class="upload-content">
+                    <video id="camera-stream" autoplay playsinline></video>
+                    <button type="button" id="capture-btn">Foto aufnehmen</button>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                </div>
+
+                <textarea name="comment" maxlength="100" placeholder="Dein Kommentar (max. 100 Zeichen)"></textarea>
+                <button type="submit">Hochladen</button>
+            </form>
+        </div>
         <div id="loading-indicator" style="display: none;">Wird hochgeladen...</div>
         <a href="/gallery">Zur Galerie</a>
     </div>

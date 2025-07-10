@@ -87,6 +87,9 @@ def get_images():
     for key, image_data in data.items():
         upload_time = datetime.fromisoformat(image_data['timestamp'])
         age = (current_time - upload_time).total_seconds()
+
+        if age > TOTAL_LIFETIME:
+            continue
         
         image_data['id'] = key
         image_data['age'] = age
